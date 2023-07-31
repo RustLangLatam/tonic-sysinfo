@@ -101,7 +101,6 @@ mod tests {
     use crate::pb::sys_info_service_server::SysInfoService;
     use crate::pb::{sys_info_check_request, SysInfoCheckRequest};
     use crate::server::SysInfoContext;
-    use tokio_stream::StreamExt;
     use tonic::Request;
 
     async fn make_test_service() -> SysInfoContext {
@@ -112,7 +111,6 @@ mod tests {
     #[tokio::test]
     async fn test_service_check() {
         let service = make_test_service().await;
-        println!("#######");
 
         // Overall server health
         let resp = service
@@ -121,28 +119,18 @@ mod tests {
             }))
             .await;
         assert!(resp.is_ok());
-
-        println!("{:#?}", resp.unwrap());
     }
 
     #[tokio::test]
     async fn test_service_watch() {
         let service = make_test_service().await;
-        println!("#######");
 
         // Overall server health
         let response = service
             .watch(Request::new(SysInfoCheckRequest {
                 info_type: vec![sys_info_check_request::InfoType::DiskInfo.into()],
             }))
-            .await
-            .unwrap();
-        // assert!(response.is_ok());
-
-        let mut response_stream = response.into_inner();
-
-        while let Some(response) = response_stream.next().await {
-            println!("####### {:?}", response)
-        }
+            .await;
+        assert!(response.is_ok());
     }
 }
