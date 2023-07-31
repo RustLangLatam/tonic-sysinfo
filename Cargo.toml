@@ -1,0 +1,33 @@
+[package]
+authors = ["Rust Latam <rust.lang.latam@gmail.com>"]
+categories = ["network-programming", "asynchronous"]
+description = """
+System’s information module of `tonic` gRPC implementation.
+"""
+documentation = "https://docs.rs/tonic-sysinfo/0.1.0"
+edition = "2021"
+homepage = "https://github.com/RustLangLatam"
+keywords = ["rpc", "grpc", "async", "sysinfo"]
+license = "Apache"
+name = "tonic-sysinfo"
+readme = "README.md"
+repository = "https://github.com/RustLangLatam/tonic-sysinfo"
+version = "0.1.0"
+
+[features]
+default = ["transport"]
+transport = []
+
+[dependencies]
+async-stream = "0.3"
+prost = "0.11"
+tokio = {version = "1.0", features = ["sync"]}
+tokio-stream = "0.1"
+tonic = { version = "0.9", default-features = false, features = ["codegen", "prost"] }
+sysinfo = "0.29"
+
+[dev-dependencies]
+tokio = {version = "1.0", features = ["rt-multi-thread", "macros"]}
+tokio-stream = "0.1"
+tonic-build = { version = "0.9", default-features = false, features = ["prost"] }
+prost-types = "0.11"
