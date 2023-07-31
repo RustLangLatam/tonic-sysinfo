@@ -1,49 +1,31 @@
 use crate::pb::sys_info_service_server::SysInfoService;
 use crate::pb::{
-    sys_info_check_request, sys_info_check_response::System as PbSystem, CpuInfo, MemInfo,
+    sys_info_check_request, sys_info_check_response::System as PbSystem, MemInfo,
     SysInfoCheckRequest, SysInfoCheckResponse,
 };
+use std::borrow::BorrowMut;
+use std::ops::Deref;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use sysinfo::{CpuExt, System, SystemExt};
+use std::time::Duration;
+use sysinfo::{System, SystemExt};
+use tokio::time;
 use tonic::codegen::futures_core::Stream;
 use tonic::{Request, Response, Status};
 
 /// A service providing implementations of gRPC system information.
 #[derive(Debug)]
-pub struct SysInfoContext {
-    sys: Arc<Mutex<System>>,
-}
+pub struct SysInfoContext {}
 
 impl SysInfoContext {
-    fn new() -> Self {
-        // Please note that we use "new_all" to ensure that all list of
-        // components, network interfaces, disks and users are already
-        // filled!
-        let sys = Arc::new(Mutex::new(System::new_all()));
-        SysInfoContext { sys }
-    }
-
-    // fn refresh_system(&mut self) {
-    //     self.sys.refresh_system()
-    // }
-
-    fn get_values(&self, data_inner: SysInfoCheckRequest) -> Result<PbSystem, Status> {
-        let mut sys = self
-            .sys
-            .lock()
-            .map_err(|_| Status::internal("Failed to acquire lock"))?;
-
-        // First we update all information of our `System` struct.
-
-        let mut info_response = PbSystem::from(&(*sys));
+    fn get_values(data_inner: SysInfoCheckRequest, sys: &mut System) -> Result<PbSystem, Status> {
+        let mut info_response = PbSystem::from(sys.deref());
 
         if data_inner
             .info_type
             .contains(&sys_info_check_request::InfoType::MemInfo.into())
         {
             sys.refresh_memory();
-            info_response.mem_info = Some(MemInfo::from(&(*sys)))
+            info_response.mem_info = Some(MemInfo::from(sys.deref()))
         };
         if data_inner
             .info_type
@@ -73,13 +55,11 @@ impl SysInfoService for SysInfoContext {
         request: Request<SysInfoCheckRequest>,
     ) -> Result<Response<SysInfoCheckResponse>, Status> {
         let data_inner = request.into_inner();
-        // Acquire the lock before mutating the state
+        let mut sys = System::new();
 
-        let info_response = self.get_values(data_inner)?;
+        let info = Self::get_values(data_inner, sys.borrow_mut()).unwrap();
 
-        Ok(Response::new(SysInfoCheckResponse {
-            info: Some(info_response),
-        }))
+        Ok(Response::new(SysInfoCheckResponse { info: Some(info) }))
     }
 
     type WatchStream =
@@ -90,19 +70,26 @@ impl SysInfoService for SysInfoContext {
         request: Request<SysInfoCheckRequest>,
     ) -> Result<Response<Self::WatchStream>, Status> {
         let data_inner = request.into_inner();
-        let info_system = self.get_values(data_inner).unwrap();
 
         let output = async_stream::try_stream! {
 
-            // yield the current value
-            // let status = crate::pb::sys_info_check_response::ServingStatus::from(*status_rx.borrow()) as i32;
-            yield SysInfoCheckResponse { info: Some(info_system) };
+            let mut sys = System::new();
+            let info = Self::get_values(data_inner.clone(), sys.borrow_mut()).unwrap();
 
-            // #[allow(clippy::redundant_pattern_matching)]
-            // while let Ok(_) = status_rx.changed().await {
-            //     // let status = crate::pb::sys_info_check_response::ServingStatus::from(*status_rx.borrow()) as i32;
-            //     yield SysInfoCheckResponse { status };
-            // }
+            yield SysInfoCheckResponse { info: Some(info) };
+
+            let mut interval = time::interval(Duration::from_secs(1));
+
+            loop {
+                // sleep not to overload our system.
+                let _tick = interval.tick().await;
+
+                let info = Self::get_values(data_inner.clone(), sys.borrow_mut()).unwrap();
+
+                yield SysInfoCheckResponse { info: Some(info) };
+
+            }
+
         };
 
         Ok(Response::new(Box::pin(output) as Self::WatchStream))
@@ -114,25 +101,48 @@ mod tests {
     use crate::pb::sys_info_service_server::SysInfoService;
     use crate::pb::{sys_info_check_request, SysInfoCheckRequest};
     use crate::server::SysInfoContext;
+    use tokio_stream::StreamExt;
     use tonic::Request;
 
     async fn make_test_service() -> SysInfoContext {
-        let health_service = SysInfoContext::new();
+        let health_service = SysInfoContext {};
         health_service
     }
 
     #[tokio::test]
     async fn test_service_check() {
         let service = make_test_service().await;
+        println!("#######");
 
         // Overall server health
         let resp = service
             .check(Request::new(SysInfoCheckRequest {
-                info_type: vec![
-                    sys_info_check_request::InfoType::DiskInfo.into()
-                ],
+                info_type: vec![sys_info_check_request::InfoType::DiskInfo.into()],
             }))
             .await;
         assert!(resp.is_ok());
+
+        println!("{:#?}", resp.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_service_watch() {
+        let service = make_test_service().await;
+        println!("#######");
+
+        // Overall server health
+        let response = service
+            .watch(Request::new(SysInfoCheckRequest {
+                info_type: vec![sys_info_check_request::InfoType::DiskInfo.into()],
+            }))
+            .await
+            .unwrap();
+        // assert!(response.is_ok());
+
+        let mut response_stream = response.into_inner();
+
+        while let Some(response) = response_stream.next().await {
+            println!("####### {:?}", response)
+        }
     }
 }

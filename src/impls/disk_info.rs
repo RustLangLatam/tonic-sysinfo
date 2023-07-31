@@ -12,8 +12,3 @@ impl From<&Disk> for DiskInfo {
         }
     }
 }
-
-// Function to format space in GB
-fn format_space_in_gb(space: u64) -> f64 {
-    space as f64 / (1024.0 * 1024.0 * 1024.0)
-}

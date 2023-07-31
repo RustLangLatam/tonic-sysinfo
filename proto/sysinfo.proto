@@ -61,16 +61,12 @@ message CpuInfo {
 message DiskInfo {
     // The name of the disk or storage device.
     string name = 1;
-
     // The type of file system used on the disk.
     string file_system = 2;
-
     // The mount point of the disk in the file system.
     string mount_point = 3;
-
     // The total available space on the disk, expressed in bytes.
     uint64 total_space = 4;
-
     // The currently available space on the disk, expressed in bytes.
     uint64 available_space = 5;
 }
