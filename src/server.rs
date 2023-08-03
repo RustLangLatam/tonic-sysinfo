@@ -1,7 +1,6 @@
-use crate::pb::sys_info_service_server::SysInfoService;
+use crate::pb::sys_info_service_server::{SysInfoService, SysInfoServiceServer};
 use crate::pb::{
-    sys_info_check_request, sys_info_check_response::System as PbSystem, MemInfo,
-    SysInfoCheckRequest, SysInfoCheckResponse,
+    sys_info_check_response::System as PbSystem, MemInfo, SysInfoCheckRequest, SysInfoCheckResponse,
 };
 use std::borrow::BorrowMut;
 use std::ops::Deref;
@@ -17,29 +16,24 @@ use tonic::{Request, Response, Status};
 pub struct SysInfoContext {}
 
 impl SysInfoContext {
+    pub fn service() -> SysInfoServiceServer<SysInfoContext> {
+        SysInfoServiceServer::new(SysInfoContext {})
+    }
+
     fn get_values(data_inner: SysInfoCheckRequest, sys: &mut System) -> Result<PbSystem, Status> {
         let mut info_response = PbSystem::from(sys.deref());
 
-        if data_inner
-            .info_type
-            .contains(&sys_info_check_request::InfoType::MemInfo.into())
-        {
+        if data_inner.mem_info {
             sys.refresh_memory();
             info_response.mem_info = Some(MemInfo::from(sys.deref()))
         };
-        if data_inner
-            .info_type
-            .contains(&sys_info_check_request::InfoType::CpuInfo.into())
-        {
+        if data_inner.cpu_info {
             sys.refresh_cpu();
             let cpu_info_vec = sys.cpus().iter().map(Into::into).collect::<Vec<_>>();
             info_response.cpu_info = cpu_info_vec
         }
 
-        if data_inner
-            .info_type
-            .contains(&sys_info_check_request::InfoType::DiskInfo.into())
-        {
+        if data_inner.disk_info {
             sys.refresh_disks_list();
             let disk_info = sys.disks().iter().map(Into::into).collect::<Vec<_>>();
             info_response.disk_info = disk_info
@@ -71,6 +65,14 @@ impl SysInfoService for SysInfoContext {
     ) -> Result<Response<Self::WatchStream>, Status> {
         let data_inner = request.into_inner();
 
+        let interval_parm = if data_inner.interval == 0 {
+            1
+        } else {
+            data_inner.interval
+        } as u64;
+
+        let interval_sec = Duration::from_secs(interval_parm);
+
         let output = async_stream::try_stream! {
 
             let mut sys = System::new();
@@ -78,7 +80,7 @@ impl SysInfoService for SysInfoContext {
 
             yield SysInfoCheckResponse { info: Some(info) };
 
-            let mut interval = time::interval(Duration::from_secs(1));
+            let mut interval = time::interval(interval_sec);
 
             loop {
                 // sleep not to overload our system.
@@ -88,6 +90,7 @@ impl SysInfoService for SysInfoContext {
 
                 yield SysInfoCheckResponse { info: Some(info) };
 
+                // std::thread::sleep(System::MINIMUM_CPU_UPDATE_INTERVAL);
             }
 
         };
@@ -99,7 +102,7 @@ impl SysInfoService for SysInfoContext {
 #[cfg(test)]
 mod tests {
     use crate::pb::sys_info_service_server::SysInfoService;
-    use crate::pb::{sys_info_check_request, SysInfoCheckRequest};
+    use crate::pb::SysInfoCheckRequest;
     use crate::server::SysInfoContext;
     use tonic::Request;
 
@@ -115,7 +118,8 @@ mod tests {
         // Overall server health
         let resp = service
             .check(Request::new(SysInfoCheckRequest {
-                info_type: vec![sys_info_check_request::InfoType::DiskInfo.into()],
+                disk_info: true,
+                ..Default::default()
             }))
             .await;
         assert!(resp.is_ok());
@@ -128,7 +132,8 @@ mod tests {
         // Overall server health
         let response = service
             .watch(Request::new(SysInfoCheckRequest {
-                info_type: vec![sys_info_check_request::InfoType::DiskInfo.into()],
+                disk_info: true,
+                ..Default::default()
             }))
             .await;
         assert!(response.is_ok());

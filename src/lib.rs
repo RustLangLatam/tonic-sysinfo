@@ -41,5 +41,6 @@ pub mod pb {
     }
 }
 
+pub use self::server::SysInfoContext;
 mod impls;
 pub mod server;

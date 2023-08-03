@@ -71,16 +71,11 @@ message DiskInfo {
     uint64 available_space = 5;
 }
 
-// SysInfoCheckRequest message is a request containing an InfoType enumeration that specifies the type of system information to retrieve.
 message SysInfoCheckRequest {
-    // Enumeration of possible system information types.
-    enum InfoType {
-        MEM_INFO = 0;
-        CPU_INFO = 1;
-        DISK_INFO = 2;
-    }
-    // List of InfoType values indicating the types of system information to retrieve.
-    repeated InfoType info_type = 1;
+     bool mem_info = 1;
+     bool cpu_info = 2;
+     bool disk_info = 3;
+     uint32 interval = 4; // interval to execute a refresh info every seconds.
 }
 
 // SysInfoCheckResponse message is a response containing a System message with system information.

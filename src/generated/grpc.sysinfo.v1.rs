@@ -62,52 +62,14 @@ pub struct DiskInfo {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SysInfoCheckRequest {
-    /// List of InfoType values indicating the types of system information to retrieve.
-    #[prost(enumeration = "sys_info_check_request::InfoType", repeated, tag = "1")]
-    pub info_type: ::prost::alloc::vec::Vec<i32>,
-}
-/// Nested message and enum types in `SysInfoCheckRequest`.
-pub mod sys_info_check_request {
-    /// Enumeration of possible system information types.
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum InfoType {
-        MemInfo = 0,
-        CpuInfo = 1,
-        DiskInfo = 2,
-    }
-    impl InfoType {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                InfoType::MemInfo => "MEM_INFO",
-                InfoType::CpuInfo => "CPU_INFO",
-                InfoType::DiskInfo => "DISK_INFO",
-            }
-        }
-        /// Creates an enum from field names used in the ProtoBuf definition.
-        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-            match value {
-                "MEM_INFO" => Some(Self::MemInfo),
-                "CPU_INFO" => Some(Self::CpuInfo),
-                "DISK_INFO" => Some(Self::DiskInfo),
-                _ => None,
-            }
-        }
-    }
+    #[prost(bool, tag = "1")]
+    pub mem_info: bool,
+    #[prost(bool, tag = "2")]
+    pub cpu_info: bool,
+    #[prost(bool, tag = "3")]
+    pub disk_info: bool,
+    #[prost(uint32, tag = "4")]
+    pub interval: u32,
 }
 /// SysInfoCheckResponse message is a response containing a System message with system information.
 #[allow(clippy::derive_partial_eq_without_eq)]
