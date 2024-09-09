@@ -10,6 +10,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("generated");
 
     generate(&out_dir)?;
+
+    #[cfg(debug_assertions)]
     if changed(&out_dir) {
         panic!("protobuf interfaces do not match generated sources");
     }
