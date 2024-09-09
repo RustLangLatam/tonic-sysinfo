@@ -1,9 +1,8 @@
 [package]
 authors = ["Rust Latam <rust.lang.latam@gmail.com>"]
 categories = ["network-programming", "asynchronous"]
-description = """
-System’s information module of `tonic` gRPC implementation.
-"""
+description = "A gRPC service for monitoring system resources such as CPU, memory, and disk."
+
 documentation = "https://docs.rs/tonic-sysinfo/0.1.0"
 edition = "2021"
 homepage = "https://github.com/RustLangLatam"
