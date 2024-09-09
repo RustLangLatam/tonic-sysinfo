@@ -12,7 +12,8 @@ license = "Apache"
 name = "tonic-sysinfo"
 readme = "README.md"
 repository = "https://github.com/RustLangLatam/tonic-sysinfo"
-version = "0.1.0"
+version = "0.1.1"
+rust-version = "1.80.0"
 
 [features]
 default = ["transport"]
@@ -20,14 +21,18 @@ transport = []
 
 [dependencies]
 async-stream = "0.3"
-prost = "0.11"
-tokio = {version = "1.0", features = ["sync"]}
+prost = "0.13"
+tokio = {version = "1.40", features = ["sync"]}
 tokio-stream = "0.1"
-tonic = { version = "0.9", default-features = false, features = ["codegen", "prost"] }
-sysinfo = "0.29"
+tonic = { version = "0.12", default-features = false, features = ["codegen", "prost"] }
+sysinfo = "0.31"
+futures-util = "0.3"
 
 [dev-dependencies]
-tokio = {version = "1.0", features = ["rt-multi-thread", "macros"]}
+tokio = {version = "1.40", features = ["rt-multi-thread", "macros"]}
 tokio-stream = "0.1"
-tonic-build = { version = "0.9", default-features = false, features = ["prost"] }
-prost-types = "0.11"
+tonic-build = { version = "0.12", default-features = false, features = ["prost"] }
+prost-types = "0.13"
+
+[build-dependencies]
+tonic-build = { version = "0.12", default-features = false, features = ["prost"] }

@@ -5,9 +5,7 @@ fn bootstrap() {
     let iface_files = &["proto/sysinfo.proto"];
     let dirs = &["proto"];
 
-    let out_dir = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join("generated");
+    let out_dir = PathBuf::from(std::env!("CARGO_MANIFEST_DIR")).join("src").join("generated");
 
     tonic_build::configure()
         .build_client(true)

@@ -1,12 +1,11 @@
-use sysinfo::SystemExt;
-use crate::pb::sys_info_check_response;
+use crate::pb::SystemInfoResponse;
 
-impl From<&sysinfo::System> for sys_info_check_response::System {
+impl From<&sysinfo::System> for SystemInfoResponse {
     fn from(value: &sysinfo::System) -> Self {
         Self {
-            mem_info: Some(value.into()),
+            memory_info: Some(value.into()),
             cpu_info: value.cpus().iter().map(Into::into).collect::<Vec<_>>(),
-            disk_info: value.disks().iter().map(Into::into).collect::<Vec<_>>(),
+            disk_info: vec![],
         }
     }
 }

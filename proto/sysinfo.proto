@@ -22,84 +22,52 @@ option java_multiple_files = true;
 option java_outer_classname = "SysInfoProto";
 option java_package = "io.grpc.sysinfo.v1";
 
+// System information messages
 
-// The provided protocol buffer file defines messages and services for a SysInfoService,
-// which allows clients to request information about memory, CPU, and disk usage in the system.
-// The file includes several messages such as MemInfo and CpuInfo to hold specific system information.
-// The SysInfoCheckRequest message allows clients to specify the type of information they want to retrieve,
-// and the SysInfoCheckResponse message contains the requested system information.
-
-// MemInfo message contains information about memory and swap usage in the system.
-message MemInfo {
-    // Total memory in the system (in bytes).
-    uint64 mem_total = 1;
-    // Free memory in the system (in bytes).
-    uint64 mem_free = 2;
-    // Available memory in the system (in bytes).
-    uint64 mem_available = 3;
-    // Total swap space in the system (in bytes).
-    uint64 swap_total = 4;
-    // Free swap space in the system (in bytes).
-    uint64 swap_free = 5;
+// Memory information in the system.
+message MemoryInfo {
+    uint32 total = 1; // Total memory in the system (in bytes)
+    uint32 free = 2; // Free memory in the system (in bytes)
+    uint32 available = 3; // Available memory in the system (in bytes)
+    uint32 swap_total = 4; // Total swap space in the system (in bytes)
+    uint32 swap_free = 5; // Free swap space in the system (in bytes)
 }
 
-// CpuInfo message contains information about CPU usage and details in the system.
+// CPU information in the system.
 message CpuInfo {
-    // Name of the CPU.
-    string cpu_name = 1;
-    // CPU usage as a floating-point value.
-    float cpu_usage = 2;
-    // CPU frequency (in Hz).
-    uint64 frequency = 4;
-    // Vendor ID of the CPU.
-    string vendor_id = 5;
-    // Brand/model of the CPU.
-    string brand = 6;
+    string name = 1; // Name of the CPU
+    float usage = 2; // CPU usage as a floating-point value
+    uint64 frequency = 3; // CPU frequency (in Hz)
+    string vendor_id = 4; // Vendor ID of the CPU
+    string brand = 5; // Brand/model of the CPU
 }
 
-// Represents information about a disk or storage device in the system.
+// Disk information in the system.
 message DiskInfo {
-    // The name of the disk or storage device.
-    string name = 1;
-    // The type of file system used on the disk.
-    string file_system = 2;
-    // The mount point of the disk in the file system.
-    string mount_point = 3;
-    // The total available space on the disk, expressed in bytes.
-    uint64 total_space = 4;
-    // The currently available space on the disk, expressed in bytes.
-    uint64 available_space = 5;
+    string name = 1; // Name of the disk or storage device
+    string file_system = 2; // Type of file system used on the disk
+    string mount_point = 3; // Mount point of the disk in the file system
+    uint32 total_space = 4; // Total available space on the disk (in bytes)
+    uint32 available_space = 5; // Currently available space on the disk (in bytes)
 }
 
-message SysInfoCheckRequest {
-     bool mem_info = 1;
-     bool cpu_info = 2;
-     bool disk_info = 3;
-     uint32 interval = 4; // interval to execute a refresh info every seconds.
+// System information request
+message SystemInfoRequest {
+    bool include_memory_info = 1;
+    bool include_cpu_info = 2;
+    bool include_disk_info = 3;
+    uint32 refresh_interval = 4; // Interval to execute a refresh (in seconds)
 }
 
-// SysInfoCheckResponse message is a response containing a System message with system information.
-message SysInfoCheckResponse {
-    // Nested System message containing system information.
-    message System {
-        // Memory information in the system.
-        MemInfo mem_info = 1;
-        // List of CPU information in the system.
-        repeated CpuInfo cpu_info = 2;
-        // List of Disk information in the system.
-        repeated DiskInfo disk_info = 3;
-    }
-    // System message containing the requested system information.
-    System info = 1;
+// System information response
+message SystemInfoResponse {
+    MemoryInfo memory_info = 1;
+    repeated CpuInfo cpu_info = 2;
+    repeated DiskInfo disk_info = 3;
 }
 
-// SysInfoService is an RPC service that defines two methods:
-// 1. Check: A unary RPC method that takes a SysInfoCheckRequest and returns a SysInfoCheckResponse. Used to perform a single check for system information.
-// 2. Watch: A server-streaming RPC method that takes a SysInfoCheckRequest and returns a stream of SysInfoCheckResponse messages. Used to observe real-time changes in system information.
-service SysInfoService {
-    // Check method performs a single check for system information.
-    rpc Check(SysInfoCheckRequest) returns (SysInfoCheckResponse);
-
-    // Watch method returns a stream of system information for real-time observation of changes.
-    rpc Watch(SysInfoCheckRequest) returns (stream SysInfoCheckResponse);
+// System information service
+service SystemInfoService {
+    rpc GetSystemInfo(SystemInfoRequest) returns (SystemInfoResponse);
+    rpc WatchSystemInfo(SystemInfoRequest) returns (stream SystemInfoResponse);
 }

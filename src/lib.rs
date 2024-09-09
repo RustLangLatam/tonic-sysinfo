@@ -6,14 +6,8 @@
 //!
 //! [here]: https://github.com/RustLangLatam/tonic-sysinfo/blob/master/examples/server.rs
 
-#![warn(
-    missing_debug_implementations,
-    rust_2018_idioms,
-    unreachable_pub
-)]
-#![doc(
-    html_logo_url = "https://avatars.githubusercontent.com/u/108101999?v=4"
-)]
+#![warn(missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
+#![doc(html_logo_url = "https://avatars.githubusercontent.com/u/108101999?v=4")]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![doc(html_root_url = "https://docs.rs/tonic-sysinfo/0.1.0")]
 #![doc(issue_tracker_base_url = "https://github.com/RustLangLatam/tonic-sysinfo/issues/")]
@@ -31,8 +25,9 @@ pub mod pb {
 
     #[cfg(test)]
     mod tests {
-        use super::FILE_DESCRIPTOR_SET;
         use prost::Message as _;
+
+        use super::FILE_DESCRIPTOR_SET;
 
         #[test]
         fn file_descriptor_set_is_valid() {

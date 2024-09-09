@@ -1,110 +1,135 @@
-use crate::pb::sys_info_service_server::{SysInfoService, SysInfoServiceServer};
-use crate::pb::{
-    sys_info_check_response::System as PbSystem, MemInfo, SysInfoCheckRequest, SysInfoCheckResponse,
-};
-use std::borrow::BorrowMut;
-use std::ops::Deref;
-use std::pin::Pin;
-use std::time::Duration;
-use sysinfo::{System, SystemExt};
+use std::{borrow::BorrowMut, ops::Deref, pin::Pin, time::Duration};
+
+use futures_util::Stream;
+use sysinfo::{Disks, System};
 use tokio::time;
-use tonic::codegen::futures_core::Stream;
 use tonic::{Request, Response, Status};
+
+use crate::pb::{
+    system_info_service_server::{SystemInfoService, SystemInfoServiceServer},
+    MemoryInfo, SystemInfoRequest, SystemInfoResponse,
+};
 
 /// A service providing implementations of gRPC system information.
 #[derive(Debug)]
 pub struct SysInfoContext {}
 
 impl SysInfoContext {
-    pub fn service() -> SysInfoServiceServer<SysInfoContext> {
-        SysInfoServiceServer::new(SysInfoContext {})
+    /// Creates a new instance of the `SystemInfoServiceServer`.
+    pub fn service() -> SystemInfoServiceServer<SysInfoContext> {
+        SystemInfoServiceServer::new(SysInfoContext {})
     }
 
-    fn get_values(data_inner: SysInfoCheckRequest, sys: &mut System) -> Result<PbSystem, Status> {
-        let mut info_response = PbSystem::from(sys.deref());
+    /// Retrieves system information based on the provided request.
+    ///
+    /// This function takes a `SystemInfoRequest` and a mutable reference to a `System` object.
+    /// It returns a `SystemInfoResponse` containing the requested system information.
+    fn get_system_info_values(
+        request: SystemInfoRequest,
+        system: &mut System,
+    ) -> Result<SystemInfoResponse, Status> {
+        // Initialize the response with the system information.
+        let mut response = SystemInfoResponse::from(system.deref());
 
-        if data_inner.mem_info {
-            sys.refresh_memory();
-            info_response.mem_info = Some(MemInfo::from(sys.deref()))
-        };
-        if data_inner.cpu_info {
-            sys.refresh_cpu();
-            let cpu_info_vec = sys.cpus().iter().map(Into::into).collect::<Vec<_>>();
-            info_response.cpu_info = cpu_info_vec
+        // If memory information is requested, refresh the system's memory information and add it to the response.
+        if request.include_memory_info {
+            system.refresh_memory();
+            response.memory_info = Some(MemoryInfo::from(system.deref()));
         }
 
-        if data_inner.disk_info {
-            sys.refresh_disks_list();
-            let disk_info = sys.disks().iter().map(Into::into).collect::<Vec<_>>();
-            info_response.disk_info = disk_info
+        // If CPU information is requested, refresh the system's CPU information and add it to the response.
+        if request.include_cpu_info {
+            system.refresh_cpu_all();
+            let cpu_info = system.cpus().iter().map(Into::into).collect::<Vec<_>>();
+            response.cpu_info = cpu_info;
         }
-        Ok(info_response)
+
+        // If disk information is requested, refresh the system's disk information and add it to the response.
+        if request.include_disk_info {
+            let disks = Disks::new_with_refreshed_list();
+            let disk_info = disks.iter().map(Into::into).collect::<Vec<_>>();
+            response.disk_info = disk_info;
+        }
+
+        Ok(response)
     }
 }
 
 #[tonic::async_trait]
-impl SysInfoService for SysInfoContext {
-    async fn check(
+impl SystemInfoService for SysInfoContext {
+    /// Retrieves system information based on the provided request.
+    ///
+    /// This function takes a `Request` containing a `SystemInfoRequest` and returns a `Response` containing a `SystemInfoResponse`.
+    async fn get_system_info(
         &self,
-        request: Request<SysInfoCheckRequest>,
-    ) -> Result<Response<SysInfoCheckResponse>, Status> {
-        let data_inner = request.into_inner();
-        let mut sys = System::new();
+        request: Request<SystemInfoRequest>,
+    ) -> Result<Response<SystemInfoResponse>, Status> {
+        // Extract the request data from the request.
+        let request_data = request.into_inner();
 
-        let info = Self::get_values(data_inner, sys.borrow_mut()).unwrap();
+        // Create a new system object.
+        let mut system = System::new();
 
-        Ok(Response::new(SysInfoCheckResponse { info: Some(info) }))
+        // Retrieve the system information based on the request.
+        let response = Self::get_system_info_values(request_data, system.borrow_mut())?;
+
+        // Return the response.
+        Ok(Response::new(response))
     }
 
-    type WatchStream =
-        Pin<Box<dyn Stream<Item = Result<SysInfoCheckResponse, Status>> + Send + 'static>>;
+    /// Type alias for the watch system info stream.
+    type WatchSystemInfoStream =
+    Pin<Box<dyn Stream<Item = Result<SystemInfoResponse, Status>> + Send + 'static>>;
 
-    async fn watch(
+    /// Watches system information based on the provided request.
+    ///
+    /// This function takes a `Request` containing a `SystemInfoRequest` and returns a `Response` containing a stream of `SystemInfoResponse` objects.
+    async fn watch_system_info(
         &self,
-        request: Request<SysInfoCheckRequest>,
-    ) -> Result<Response<Self::WatchStream>, Status> {
-        let data_inner = request.into_inner();
+        request: Request<SystemInfoRequest>,
+    ) -> Result<Response<Self::WatchSystemInfoStream>, Status> {
+        // Extract the request data from the request.
+        let request_data = request.into_inner();
 
-        let interval_parm = if data_inner.interval == 0 {
-            1
+        // Determine the interval at which to refresh the system information.
+        let interval = if request_data.refresh_interval == 0 {
+            Duration::from_secs(1)
         } else {
-            data_inner.interval
-        } as u64;
-
-        let interval_sec = Duration::from_secs(interval_parm);
-
-        let output = async_stream::try_stream! {
-
-            let mut sys = System::new();
-            let info = Self::get_values(data_inner.clone(), sys.borrow_mut()).unwrap();
-
-            yield SysInfoCheckResponse { info: Some(info) };
-
-            let mut interval = time::interval(interval_sec);
-
-            loop {
-                // sleep not to overload our system.
-                let _tick = interval.tick().await;
-
-                let info = Self::get_values(data_inner.clone(), sys.borrow_mut()).unwrap();
-
-                yield SysInfoCheckResponse { info: Some(info) };
-
-                // std::thread::sleep(System::MINIMUM_CPU_UPDATE_INTERVAL);
-            }
-
+            Duration::from_secs(request_data.refresh_interval as u64)
         };
 
-        Ok(Response::new(Box::pin(output) as Self::WatchStream))
+        // Create a stream that yields system information at the specified interval.
+        let output = async_stream::try_stream! {
+            // Create a new system object.
+            let mut system = System::new();
+
+            // Yield the initial system information.
+            yield Self::get_system_info_values(request_data.clone(), system.borrow_mut())?;
+
+            // Create an interval stream that ticks at the specified interval.
+            let mut interval_stream = time::interval(interval);
+
+            // Loop indefinitely, yielding system information at each interval.
+            loop {
+                let _ = interval_stream.tick().await;
+                yield Self::get_system_info_values(request_data.clone(), system.borrow_mut())?;
+            }
+        };
+
+        // Return the response containing the stream.
+        Ok(Response::new(
+            Box::pin(output) as Self::WatchSystemInfoStream
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::pb::sys_info_service_server::SysInfoService;
-    use crate::pb::SysInfoCheckRequest;
-    use crate::server::SysInfoContext;
     use tonic::Request;
+
+    use crate::pb::system_info_service_server::SystemInfoService;
+    use crate::pb::SystemInfoRequest;
+    use crate::server::SysInfoContext;
 
     async fn make_test_service() -> SysInfoContext {
         let health_service = SysInfoContext {};
@@ -117,8 +142,8 @@ mod tests {
 
         // Overall server health
         let resp = service
-            .check(Request::new(SysInfoCheckRequest {
-                disk_info: true,
+            .get_system_info(Request::new(SystemInfoRequest {
+                include_disk_info: true,
                 ..Default::default()
             }))
             .await;
@@ -131,8 +156,8 @@ mod tests {
 
         // Overall server health
         let response = service
-            .watch(Request::new(SysInfoCheckRequest {
-                disk_info: true,
+            .watch_system_info(Request::new(SystemInfoRequest {
+                include_disk_info: true,
                 ..Default::default()
             }))
             .await;

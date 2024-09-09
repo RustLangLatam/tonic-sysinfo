@@ -1,14 +1,13 @@
-use sysinfo::SystemExt;
-use crate::pb::MemInfo;
+use crate::pb::MemoryInfo;
 
-impl From<&sysinfo::System> for MemInfo {
+impl From<&sysinfo::System> for MemoryInfo {
     fn from(value: &sysinfo::System) -> Self {
         Self {
-            mem_total: value.total_memory(),
-            mem_free: value.free_memory(),
-            mem_available: value.available_memory(),
-            swap_total: value.total_swap(),
-            swap_free: value.free_swap(),
+            total: value.total_memory() as u32,
+            free: value.free_memory() as u32,
+            swap_total: value.total_swap() as u32,
+            swap_free: value.free_swap() as u32,
+            available: value.available_memory() as u32,
         }
     }
 }
