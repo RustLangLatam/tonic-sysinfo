@@ -39,5 +39,5 @@ pre-release-commit-message = "{{crate_name}}: bump {{crate_name}} to v{{version}
 tag-name = "{{crate_name}}/v{{version}}"
 tag-message = "{{crate_name}} version {{version}}"
 # For using `{{version}}` placeholder.
-consolidate-commits = false
+consolidate-commits = true
 shared-version = true
