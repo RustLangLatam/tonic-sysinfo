@@ -1,6 +1,6 @@
 [package]
 name = "tonic-sysinfo"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Rust Latam <rust.lang.latam@gmail.com>"]
 categories = ["network-programming", "asynchronous"]
 description = "A gRPC service for monitoring system resources such as CPU, memory, and disk."
