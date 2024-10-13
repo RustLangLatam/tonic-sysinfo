@@ -12,8 +12,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = service
         .watch_system_info(Request::new(SystemInfoRequest {
             include_memory_info: false,
-            include_disk_info: false,
-            include_cpu_info: true,
+            include_disk_info: true,
+            include_cpu_info: false,
             refresh_interval: 10,
         }))
         .await

@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     generate(&out_dir)?;
 
-    #[cfg(debug_assertions)]
+    #[cfg(not(debug_assertions))]
     if changed(&out_dir) {
         panic!("protobuf interfaces do not match generated sources");
     }
@@ -40,6 +40,7 @@ fn generate(out_dir: &std::path::Path) -> Result<(), Box<dyn std::error::Error>>
 
 /// Returns true if the given path contains files that have changed since the
 /// last Git commit
+#[cfg(not(debug_assertions))]
 fn changed(path: &std::path::Path) -> bool {
     let status = std::process::Command::new("git")
         .arg("diff")
